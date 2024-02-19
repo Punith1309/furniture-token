@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "hardhat/console.sol";
+
+contract FurnitureToken is ERC20, Ownable, ERC20Burnable {
+    event LogMessage(string message);
+
+    enum FurnitureType { Table, Chair }
+
+    mapping(FurnitureType => uint256) public furniturePrices;
+    FurnitureType public lastPurchasedFurniture;
+
+    constructor(address initialOwner) Ownable(initialOwner) ERC20("FurnitureToken", "FT") {
+        furniturePrices[FurnitureType.Table] = 400;
+        furniturePrices[FurnitureType.Chair] = 200;
+    }
+
+    function mintTokens(address devisee, uint256 enumerate) public onlyOwner {
+        _mint(devisee, enumerate);
+    }
+
+    function transferTokens(address receiver, uint256 enumerate) external {
+        require(balanceOf(msg.sender) >= enumerate, "INSUFFICIENT TOKENS!!");
+        _transfer(msg.sender, receiver, enumerate);
+    }
+
+    function redeem_Furniture(uint256 tokenAmount) public {
+        require(tokenAmount > 0, "Invalid token enumerate");
+
+        FurnitureType _furnitureType = determineFurnitureType(tokenAmount);
+        require(furniturePrices[_furnitureType] > 0, "Invalid furniture type");
+        require(balanceOf(msg.sender) >= furniturePrices[_furnitureType], "INSUFFICIENT TOKENS!!");
+        
+        lastPurchasedFurniture = _furnitureType;
+        _burn(msg.sender, furniturePrices[_furnitureType]);
+        emit LogMessage("Purchase Successful");
+    }
+
+    function getBalance() external view returns (uint256) {
+        return balanceOf(msg.sender);
+    }
+
+    function burnTokens(uint256 enumerate) external {
+        require(balanceOf(msg.sender) >= enumerate, "INSUFFICIENT TOKENS!!");
+        _burn(msg.sender, enumerate);
+        emit LogMessage("Tokens burned successfully");
+    }
+
+    function determineFurnitureType(uint256 tokenAmount) internal view returns (FurnitureType) {
+        if (tokenAmount >= furniturePrices[FurnitureType.Table]) {
+            return FurnitureType.Table;
+        } else if (tokenAmount >= furniturePrices[FurnitureType.Chair]) {
+            return FurnitureType.Chair;
+        } else {
+            revert("Insufficient tokens to purchase any furniture");
+        }
+    }
+
+    function getLastPurchasedFurniture() external view returns (FurnitureType) {
+        return lastPurchasedFurniture;
+    }
+}
